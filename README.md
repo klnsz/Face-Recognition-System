@@ -12,6 +12,6 @@ This system was developed for the Microprocessor class. To recognize your face, 
 I'm still in the development process. sometimes giving some minor errors for the `input` function for versions 2 and 3 of python. it will also be added to run on raspberry pi and some errors will be fixed in the next releases.
 
 ## Resources 
-PyImageSearch (https://www.pyimagesearch.com/2017/04/03/facial-landmarks-dlib-opencv-python/)
-Dlib Documentation
-OpenCV Documentation
+- PyImageSearch (https://www.pyimagesearch.com/2017/04/03/facial-landmarks-dlib-opencv-python/)
+- Dlib Documentation
+- OpenCV Documentation
