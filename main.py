@@ -1,4 +1,3 @@
-#!/bin/bash
 from imutils import face_utils #for resizing
 import numpy as np
 import argparse
