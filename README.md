@@ -1,4 +1,5 @@
 # Face-Recognition-System
+
 Face recognition system using OpenCV and Dlib library with Raspberry Pi
 
 This system was developed for the Microprocessor class. To recognize your face, you only need to introduce it once without needing dozens of your own pictures.
@@ -35,6 +36,12 @@ python main.py
 
 If you try to recognize face without save any face, it gives an error. It will be fixed.
 Because the raspberry's hardware, it is running a bit slowly. 
+
+**Developed by**
+- Asena Karaduman
+- Kerem Bayar
+- Tuğba Akar
+- Furkan Kalınsaz
 
 ## Dependencies
 - Dlib
