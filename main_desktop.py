@@ -1,4 +1,3 @@
-#!/bin/bash
 from imutils import face_utils #for resizing
 import numpy as np
 import argparse
@@ -7,13 +6,10 @@ import dlib
 import cv2
 import time
 from scipy.spatial import distance as dist #euclidian distance
+import pandas as pd
 import csv
 from pathlib import Path
-from picamera.array import PiRGBArray
-from picamera import PiCamera
-import picamera
-import picamera.array
-import os
+
 
 csv_columns = ['name', 'face_data']
 csv_file = 'all_face_data.csv'
@@ -30,6 +26,8 @@ COUNT = 0
 print('App is preparing, please wait.')
 detector = dlib.get_frontal_face_detector() # detect the faces in the image. How many faces are there
 predictor = dlib.shape_predictor('./shape_predictor_68_face_landmarks.dat') # predict the face landmarks such as mouth or eyes
+#(lStart, lEnd) = face_utils.FACIAL_LANDMARKS_IDXS["left_eye"] 
+#(rStart, rEnd) = face_utils.FACIAL_LANDMARKS_IDXS["right_eye"]
 facerec = dlib.face_recognition_model_v1('./dlib_face_recognition_resnet_model_v1.dat') #pretrained model. 
 #we send the data to this function and it returns a 128D vector that described the faces.
 
@@ -51,6 +49,7 @@ def write_dict_to_csv(csv_file, csv_columns, dict_data):
     try:
         with open(csv_file, 'w') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
+            #writer.writeheader()
             for key, value in dict_data.items():
                 writer.writerow({'name': key, 'face_data': value})
     except IOError:
@@ -82,82 +81,90 @@ def menu():
         print('3) Exit\n')
         action = int(input('>>'))
         if action == 1:
-            
-            while True:
-                run_app()
-                key = cv2.waitKey(1) & 0xFF
-                if key == ord("q"):
-                    break
+            run_app()
         elif action == 2:
             save_face()
-            print('App must be restarted after the new face saved...')
-            #quit()
     
 
 
 def run_app():
     global COUNT, TOTAL
     found_face = 0
-    with picamera.PiCamera() as camera:
-        camera.start_preview()
-        with picamera.array.PiRGBArray(camera) as stream:
-            camera.capture(stream, format='bgr')
-        	# At this point the image is available as stream.array
-            image = stream.array
-            image = imutils.resize(image, width=300)
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            if found_face % 5 == 0:
-            	rects = detector(gray, 0)
-            	print('Searching for the faces...')
-            for (i, rect) in enumerate(rects):
-                # determine the facial landmarks for the face region, then
-                # convert the landmark (x, y)-coordinates to a NumPy array
-                shape = predictor(gray, rect)
-                print('Predicting the faces...')
-                trying = np.array(facerec.compute_face_descriptor(image, shape))
-                with open("./" + csv_file, 'r') as f:
-                    reader = csv.reader(f)
-                    for row in reader:
-                        if row == [] or row[1] == "face_data":
-                            continue
-                        else:
-                           
-                            row[1] = cvt_to_array(row[1], '\n')
-                            trying = cvt_to_array(trying)
-                            distance_faces = dist.euclidean(row[1], trying)
-                            if distance_faces < 0.55:
-                                content = row[0]
-                                content = 'Access Granted! Welcome ' + str(content)
-                                
-                                break
-                            else:
-                                content = "Unknown person detected!"
-                                
-                print(content)
+    cap = cv2.VideoCapture(camera_id)
+    while True:
+        ret, image = cap.read()
+        image = imutils.resize(image, width=300)
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        if found_face % 5 == 0:
+            rects = detector(gray, 0)
+        for (i, rect) in enumerate(rects):
+            # determine the facial landmarks for the face region, then
+            # convert the landmark (x, y)-coordinates to a NumPy array
+            shape = predictor(gray, rect)
             
-                time.sleep(3)
-                shape = face_utils.shape_to_np(shape)
-                for (x, y) in shape:
-                    cv2.circle(image, (x, y), 1, (0, 0, 255), -1)
+            trying = np.array(facerec.compute_face_descriptor(image, shape))
+            #distance_faces = dist.euclidean(face_data, trying)
+            my_file = Path("./" + csv_file)
+            with open(my_file, 'r') as f:
+                reader = csv.reader(f)
+                for row in reader:
+                    if row == [] or row[1] == "face_data":
+                        continue
+                    else:
+                        #row[1] = np.array(list(map(float, row[1].split('\n'))))
+                        row[1] = cvt_to_array(row[1], '\n')
+                        trying = cvt_to_array(trying)
+                        distance_faces = dist.euclidean(row[1], trying)
+                        if distance_faces < 0.55:
+                            content = row[0]
+                            break
+                        else:
+                            content = "unknown"
+                        
+            cv2.putText(image,content, (10,40), cv2.FONT_HERSHEY_PLAIN, 1, (0,255,0), 2)
+            
+            
+            shape = face_utils.shape_to_np(shape)
+            for (x, y) in shape:
+                cv2.circle(image, (x, y), 1, (0, 0, 255), -1)
            
-                leftEye = shape[lStart:lEnd]
-                rightEye = shape[rStart:rEnd]
-    
-                leftEyeHull = cv2.convexHull(leftEye)
-                rightEyeHull = cv2.convexHull(rightEye)
-                cv2.drawContours(image, [leftEyeHull], -1, (0, 255, 0), 1)
-                cv2.drawContours(image, [rightEyeHull], -1, (0, 255, 0), 1)
- 
+            leftEye = shape[lStart:lEnd]
+            rightEye = shape[rStart:rEnd]
+            leftEAR = eye_aspect_ratio(leftEye)
+            rightEAR = eye_aspect_ratio(rightEye)
+            leftEyeHull = cv2.convexHull(leftEye)
+            rightEyeHull = cv2.convexHull(rightEye)
+            cv2.drawContours(image, [leftEyeHull], -1, (0, 255, 0), 1)
+            cv2.drawContours(image, [rightEyeHull], -1, (0, 255, 0), 1)
+            ear = (leftEAR + rightEAR) / 2.0
+            
+            
+            if ear < EAR_AR_THRESH:
+                COUNT += 1
+            else:
+                if COUNT >= CONSEC_FRAMES:
+                    TOTAL += 1
+                
+                COUNT = 0
+            cv2.putText(image, "Blinks: {}".format(TOTAL), (300, 40),cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+            
+        cv2.imshow("Frame", image)
+        key = cv2.waitKey(1) & 0xFF
+        #break
+        # if the `q` key was pressed, break from the loop
+        if key == ord("q"):
+            break
+        #time.sleep(0.1)
+    cap.release()
+    cv2.destroyAllWindows()
 
 def save_face():
     
 
-    # capture the person and save as the 128D vector
-    # this part captures only once, if you want to save another face, just call this function again.
-
-
-    camera = PiCamera()
-    rawCapture = PiRGBArray(camera)	
+    #capture the person and save as the 128D vector
+    # this part captures only once
+    cap = cv2.VideoCapture(camera_id)
+    #while True:
 
     face_data = []
     labels = []
@@ -168,8 +175,7 @@ def save_face():
     while face_number == 0:
         print('Please show your whole face to camera. When the face is detected, you will be asked for the name.')
         time.sleep(0.5)
-        camera.capture(rawCapture, format="bgr")
-        image = rawCapture.array
+        ret, image = cap.read()
         image = imutils.resize(image, width=500) #resizing
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) #it should convert to gray in onder to improve resultt.
         rects = detector(gray, 0) # detect how many faces in the image
@@ -189,10 +195,10 @@ def save_face():
                 shape = face_utils.shape_to_np(shape)
                 for (x, y) in shape:
                     cv2.circle(image, (x, y), 1, (0, 0, 255), -1)
-                name = str(raw_input('Who is this : '))
+                name = str(input('Who is this : '))
                 while (not name.isalpha or name == ''):
                     print('Please enter a valid name.')
-                    name = str(raw_input('Who is this : '))
+                    name = str(input('Who is this : '))
                 labels.append(name)
                 data[labels[0]] = face_data[0]
                 face_data=[]
@@ -205,10 +211,32 @@ def save_face():
                     write_dict_to_csv(csv_file, csv_columns, data)    
                     print('File has been created and data saved to file.')
                 face_number += 1
-                
-                camera.close()
-        rawCapture.truncate(0) 
+            #print(face_descriptor)
+            '''
 
+            leftEye = shape[lStart:lEnd]
+            rightEye = shape[rStart:rEnd]
+            leftEAR = eye_aspect_ratio(leftEye)
+            rightEAR = eye_aspect_ratio(rightEye)
+            leftEyeHull = cv2.convexHull(leftEye)
+            rightEyeHull = cv2.convexHull(rightEye)
+            cv2.drawContours(image, [leftEyeHull], -1, (0, 255, 0), 1)
+            cv2.drawContours(image, [rightEyeHull], -1, (0, 255, 0), 1)
+            ear = (leftEAR + rightEAR) / 2.0
+
+
+
+            ''' 
+    cv2.imshow("Saved face", image)
+    cv2.waitKey(0)
+    #key = cv2.waitKey(1) & 0xFF
+    #break
+    # if the `q` key was pressed, break from the loop
+    #if key == ord("q"):
+    #    break
+    #time.sleep(0.5)
+    cap.release()
+    cv2.destroyAllWindows()
 
 
 if __name__ == '__main__':
