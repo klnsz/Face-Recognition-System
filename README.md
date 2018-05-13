@@ -18,8 +18,15 @@ After these, if you haven't configured your raspberry camera, the you should sim
 sudo raspi-config
 ```
 
+Select the Interfacing Options
 
-After the configuration reboot the raspberry. Then you good to go!
+![raspi-config](imgs/interfacing.png)
+
+Then select the Camera, and enable it. 
+
+![camera](imgs/camera.png)
+
+After the configuration, reboot the raspberry. Then you good to go!
 
 Run the app with this command:
 ```bash
